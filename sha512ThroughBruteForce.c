@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <omp.h>
 
 #define ROTR(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
 #define SHR(x, n)  ((x) >> (n))
@@ -143,18 +144,113 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[]) {
     }
 }
 
-int main() {
-    const char *msg = "abc";
-    uint8_t hash[64];
-    SHA512_CTX ctx;
+// int main() {
+//     const char *msg = "abc";
+//     uint8_t hash[64];
+//     SHA512_CTX ctx;
 
+//     sha512_init(&ctx);
+//     sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
+//     sha512_final(&ctx, hash);
+
+//     printf("SHA512(\"%s\") = ", msg);
+//     for (int i=0; i<64; ++i) printf("%02x", hash[i]);
+//     printf("\n");
+
+//     return 0;
+// }
+// -------------------------------
+/* caracteres permitidos */
+const char charset[] = "abcdefghijklmnopqrstuvwxyz";
+
+int charset_len;
+
+/* alvo */
+uint8_t target[64];
+
+int found = 0;
+
+void brute(char *buffer, int depth, int maxDepth) {
+    if (found) return;
+
+    printf("testando string %s\n", buffer);
+    if (depth == maxDepth) {
+        buffer[depth] = '\0';
+        uint8_t hash[64];
+        sha512_string(buffer, hash);
+
+        if (memcmp(hash, target, 64) == 0) {
+            printf("Achou: %s\n", buffer);
+            found = 1;
+        }
+        return;
+    }
+
+    for (int i=0; i<charset_len; ++i) {
+        buffer[depth] = charset[i];
+        brute(buffer, depth+1, maxDepth);
+        if (found) return;
+    }
+}
+
+void sha512_string(const char *msg, uint8_t hash[64]) {
+    SHA512_CTX ctx;
     sha512_init(&ctx);
     sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
     sha512_final(&ctx, hash);
+}
 
-    printf("SHA512(\"%s\") = ", msg);
-    for (int i=0; i<64; ++i) printf("%02x", hash[i]);
-    printf("\n");
 
+
+void generate_and_test(int length) {
+    char buffer[length+1];
+    buffer[length] = '\0';
+
+    uint64_t total = 1;
+    for (int i=0; i<length; ++i) total *= charset_len;
+
+    for (uint64_t n=0; n<total; ++n) {
+        uint64_t x = n;
+        for (int pos=length-1; pos>=0; --pos) {
+            buffer[pos] = charset[x % charset_len];
+            x /= charset_len;
+        }
+
+        uint8_t hash[64];
+        sha512_string(buffer, hash);
+        if (memcmp(hash, target, 64)==0) {
+            printf("Achou: %s\n", buffer);
+            return;
+        }
+    }
+}
+
+
+
+int main(void) {
+    double starttime, stoptime;
+
+    omp_set_num_threads(1);
+    starttime = omp_get_wtime(); 
+
+    /* coloca seu hash alvo aqui */
+    const char *target_hex =
+      "e74aecb7ff977041dda0365b7ec5ce3354ffa03d5c0bf97885ead6b1652cacc2c62559785feac280035a018316608797bf84490ac29f3874b94fac7e1af39613";
+    for (int i=0; i<64; ++i)
+        sscanf(target_hex + i*2, "%2hhx", &target[i]);
+
+    charset_len = strlen(charset);
+
+    int maxLen = 4; // aqui você põe o comprimento que quer testar
+
+    char buffer[maxLen+1];
+    brute(buffer, 0, maxLen);
+
+    if (!found) printf("Nada encontrado.\n");
+
+    stoptime = omp_get_wtime();
+	printf("Tempo de execucao: %3.2f segundos\n", stoptime-starttime);
     return 0;
 }
+
+//compile with: gcc -o sha512ThroughBruteForce sha512ThroughBruteForce.c
