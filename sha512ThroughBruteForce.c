@@ -161,7 +161,7 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[]) {
 // }
 // -------------------------------
 /* caracteres permitidos */
-const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 
 int charset_len;
 
