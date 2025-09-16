@@ -3,7 +3,7 @@
 ### Compilar o arquivo em C
 
 ```bash
-gcc -o sha512 sha512.c
+gcc sha512ThroughBruteForce.c -o sha512ThroughBruteForce -fopenmp
 ```
 
 ### Gerar o hash SHA-512 de um arquivo
