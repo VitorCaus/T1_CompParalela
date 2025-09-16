@@ -161,7 +161,7 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[]) {
 // }
 // -------------------------------
 /* caracteres permitidos */
-const char charset[] = "abcdefghijklmnopqrstuvwxyz";
+const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 int charset_len;
 
@@ -170,10 +170,19 @@ uint8_t target[64];
 
 int found = 0;
 
+
+void sha512_string(const char *msg, uint8_t hash[64]) {
+    SHA512_CTX ctx;
+    sha512_init(&ctx);
+    sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
+    sha512_final(&ctx, hash);
+}
+
+
 void brute(char *buffer, int depth, int maxDepth) {
     if (found) return;
 
-    printf("testando string %s\n", buffer);
+    // printf("testando string %s\n", buffer); // descomente para ver as tentativas
     if (depth == maxDepth) {
         buffer[depth] = '\0';
         uint8_t hash[64];
@@ -193,12 +202,7 @@ void brute(char *buffer, int depth, int maxDepth) {
     }
 }
 
-void sha512_string(const char *msg, uint8_t hash[64]) {
-    SHA512_CTX ctx;
-    sha512_init(&ctx);
-    sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
-    sha512_final(&ctx, hash);
-}
+
 
 
 
@@ -234,14 +238,60 @@ int main(void) {
     starttime = omp_get_wtime(); 
 
     /* coloca seu hash alvo aqui */
-    const char *target_hex =
-      "e74aecb7ff977041dda0365b7ec5ce3354ffa03d5c0bf97885ead6b1652cacc2c62559785feac280035a018316608797bf84490ac29f3874b94fac7e1af39613";
+    /* read hex hash from hash.txt (expects 128 hex chars for SHA-512) */
+    const char *target_hex;
+    char target_hex_buf[129];
+    FILE *hf = fopen("hash.txt", "r");
+    if (!hf) {
+        fprintf(stderr, "Erro: nao foi possivel abrir hash.txt\n");
+        return 1;
+    }
+    char line[512];
+    if (!fgets(line, sizeof(line), hf)) {
+        fprintf(stderr, "Erro: hash.txt vazio\n");
+        fclose(hf);
+        return 1;
+    }
+    fclose(hf);
+
+    /* keep only hex digits */
+    int j = 0;
+    for (int i = 0; line[i] && j < 128; ++i) {
+        char c = line[i];
+        if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+            target_hex_buf[j++] = c;
+        }
+    }
+    target_hex_buf[j] = '\0';
+
+    if (j != 128) {
+        fprintf(stderr, "Erro: hash.txt deve conter 128 caracteres hex (SHA-512), encontrado: %d\n", j);
+        return 1;
+    }
+    printf("Hash lido: %s\n", target_hex_buf);
+
+    target_hex = target_hex_buf;
     for (int i=0; i<64; ++i)
         sscanf(target_hex + i*2, "%2hhx", &target[i]);
 
     charset_len = strlen(charset);
 
-    int maxLen = 4; // aqui você põe o comprimento que quer testar
+    int maxLen = 0;
+    FILE *tf = fopen("texto.txt", "r");
+    if (!tf) {
+        fprintf(stderr, "Erro: nao foi possivel abrir texto.txt\n");
+        return 1;
+    }
+    char wordbuf[1024];
+    if (fscanf(tf, "%1023s", wordbuf) != 1) {
+        fprintf(stderr, "Erro: texto.txt vazio ou sem palavra\n");
+        fclose(tf);
+        return 1;
+    }
+    fclose(tf);
+    maxLen = (int)strlen(wordbuf);
+    printf("Comprimento lido de texto.txt: %d\n", maxLen);
+    // int maxLen = 7; // aqui você põe o comprimento que quer testar
 
     char buffer[maxLen+1];
     brute(buffer, 0, maxLen);
@@ -253,4 +303,5 @@ int main(void) {
     return 0;
 }
 
-//compile with: gcc -o sha512ThroughBruteForce sha512ThroughBruteForce.c
+//compile with: gcc sha512ThroughBruteForce.c -o sha512ThroughBruteForce -fopenmp
+//run with: ./sha512_bruteforce
