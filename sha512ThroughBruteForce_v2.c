@@ -175,7 +175,7 @@ void print_hash_hex(const uint8_t hash[64]) {
     printf("\n");
 }
 void sha512_string(const char *msg, uint8_t hash[64]) {
-//	printf("%s\n",msg);
+//      printf("%s\n",msg);
     SHA512_CTX ctx;
     sha512_init(&ctx);
     sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
@@ -185,27 +185,33 @@ void sha512_string(const char *msg, uint8_t hash[64]) {
 
 void brute(char *buffer, int depth, int maxDepth) {
     if (found){
-	#pragma omp cancel for
-//return;
-	}
+        return;
+    }
 
-    // printf("testando string %s\n", buffer); // descomente para ver as tentativas
     if (depth == maxDepth) {
         buffer[depth] = '\0';
         uint8_t hash[64];
         sha512_string(buffer, hash);
 
         if (memcmp(hash, target, 64) == 0) {
-            printf("Achou: %s\n", buffer);
-            found = 1;
+           //#pragma omp critical
+            //{
+                printf("Achou: %s\n", buffer);
+                found = 1;
+            //}
         }
         return;
     }
-#pragma omp parallel for schedule(dynamic)
+
+    #pragma omp parallel for schedule(dynamic) shared(found)
     for (int i=0; i<charset_len; ++i) {
-        buffer[depth] = charset[i];
-        brute(buffer, depth+1, maxDepth);
-        if (found) return;
+        if (found) continue;              /* sai logo no começo */
+
+        char localBuffer[maxDepth+1];
+        memcpy(localBuffer, buffer, depth);
+        localBuffer[depth] = charset[i];
+
+        brute(localBuffer, depth+1, maxDepth);
     }
 }
 
@@ -252,11 +258,7 @@ int main(int argc, char *argv[]) {
         threads = (int)t;
     }
 
-    omp_set_num_threads(threads);
-    printf("Usando %d thread(s)\n", threads);
-
-    //omp_set_num_threads(1);
-    starttime = omp_get_wtime(); 
+    
 
     /* coloca seu hash alvo aqui */
     /* read hex hash from hash.txt (expects 128 hex chars for SHA-512) */
@@ -312,11 +314,10 @@ int main(int argc, char *argv[]) {
     fclose(tf);
     maxLen = (int)strlen(wordbuf);
     printf("Comprimento lido de texto.txt: %d\n", maxLen);
-//    printf("Texto %s\n", wordbuf);
-//	uint8_t htest[64];
-//	sha512_string(wordbuf, htest);
-//	print_hash_hex(htest);
-// int maxLen = 7; // aqui você põe o comprimento que quer testar
+    
+    omp_set_num_threads(threads);
+    printf("Usando %d thread(s)\n", threads);
+    starttime = omp_get_wtime();
 
     char buffer[maxLen+1];
     brute(buffer, 0, maxLen);
@@ -324,7 +325,7 @@ int main(int argc, char *argv[]) {
     if (!found) printf("Nada encontrado.\n");
 
     stoptime = omp_get_wtime();
-	printf("Tempo de execucao: %3.2f segundos\n", stoptime-starttime);
+    printf("Tempo de execucao: %3.2f segundos\n", stoptime-starttime);
     return 0;
 }
 
