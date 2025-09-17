@@ -18,6 +18,11 @@ sha512sum nome_do_arquivo
 sha512sum texto.txt > hash.txt
 ```
 
+##!!!!!!!!! GERAR HASH E SALVAR (EVITA \n de texto quebrando o hash)
+```bash
+echo -n "$(texto.txt)" | sha512sum > hash.txt
+```
+
 ### Verificar se o hash do arquivo está correto
 
 ```bash

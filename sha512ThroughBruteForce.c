@@ -170,8 +170,12 @@ uint8_t target[64];
 
 int found = 0;
 
-
+void print_hash_hex(const uint8_t hash[64]) {
+    for (int i = 0; i < 64; ++i) printf("%02x", hash[i]);
+    printf("\n");
+}
 void sha512_string(const char *msg, uint8_t hash[64]) {
+//	printf("%s\n",msg);
     SHA512_CTX ctx;
     sha512_init(&ctx);
     sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
@@ -291,7 +295,11 @@ int main(void) {
     fclose(tf);
     maxLen = (int)strlen(wordbuf);
     printf("Comprimento lido de texto.txt: %d\n", maxLen);
-    // int maxLen = 7; // aqui você põe o comprimento que quer testar
+    printf("Texto %s\n", wordbuf);
+	uint8_t htest[64];
+	sha512_string(wordbuf, htest);
+	print_hash_hex(htest);
+// int maxLen = 7; // aqui você põe o comprimento que quer testar
 
     char buffer[maxLen+1];
     brute(buffer, 0, maxLen);
