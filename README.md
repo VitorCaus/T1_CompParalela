@@ -28,3 +28,8 @@ echo -n "$(cat texto.txt)" | sha512sum > hash.txt
 ```bash
 sha512sum -c hash.txt
 ```
+
+### Rodar em máquina específica:
+```bash
+srun --exclusive -w atlantica10 -N 1 ./sha512ThroughBruteForce_v2 <num_threads>
+```
